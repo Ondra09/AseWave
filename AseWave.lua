@@ -1,3 +1,8 @@
+-- AseWave is a Plugin for Aseprite editor v1.2+
+-- Version: 1.0
+-- Author: https://github.com/Ondra09
+-- Permutation table
+
 local pp = {151,160,137,91,90,15,
 131,13,201,95,96,53,194,233,7,225,140,36,103,30,69,142,8,99,37,240,21,10,23,
 190, 6,148,247,120,234,75,0,26,197,62,94,252,219,203,117,35,11,32,57,177,33,
@@ -11,8 +16,6 @@ local pp = {151,160,137,91,90,15,
 251,34,242,193,238,210,144,12,191,179,162,241, 81,51,145,235,249,14,239,107,
 49,192,214, 31,181,199,106,157,184, 84,204,176,115,121,50,45,127, 4,150,254,
 138,236,205,93,222,114,67,29,24,72,243,141,128,195,78,66,215,61,156,180};
-
-
 
 -- To remove the need for index wrapping, double the permutation table length
 
@@ -48,30 +51,14 @@ function lerp(a, b, x)
     return a + x * (b - a);
 end
 
-local repeatTileX = 0
-local repeatTileY = 0
-local repeatTileZ = 0
+repeatTileX = 0
+repeatTileY = 0
+repeatTileZ = 0
 
-function incX(num)
+function inc(num, repeatTile)
     num = num +1
-    if (repeatTileX > 0) then
-        num = num % repeatTileX
-    end
-    return num
-end
-
-function incY(num)
-    num = num +1
-    if (repeatTileY > 0) then
-        num = num % repeatTileY
-    end
-    return num
-end
-
-function incZ(num)
-    num = num +1
-    if (repeatTileZ > 0) then
-        num = num % repeatTileZ
+    if (repeatTile > 0) then
+        num = num % repeatTile
     end
     return num
 end
@@ -90,16 +77,16 @@ function grad(hash, x, y, z)
     return Dot3D(Gradients3D[hash], x, y, z)
 end
 
-function Perlin3d(x, y, z)
+function Perlin3d(repeatX, repeatY, repeatZ, x, y, z)
 -- repeat
-    if (repeatTileX > 0) then
-        x = x % repeatTileX
+    if (repeatX > 0) then
+        x = x % repeatX
     end
-    if (repeatTileY > 0) then
-        y = y % repeatTileY
+    if (repeatY > 0) then
+        y = y % repeatY
     end
-    if (repeatTileZ > 0) then
-        z = z % repeatTileZ
+    if (repeatZ > 0) then
+        z = z % repeatZ
     end
 --
     xi = band(math.floor(x), 0xff)
@@ -114,14 +101,14 @@ function Perlin3d(x, y, z)
     v = fade(yf)
     w = fade(zf)
 
-   aaa = p[p[p[    xi ] +      yi ]+    zi ];
-   aba = p[p[p[    xi ] + incY(yi)]+    zi ];
-   aab = p[p[p[    xi ] +      yi ]+incZ(zi)];
-   abb = p[p[p[    xi ] + incY(yi)]+incZ(zi)];
-   baa = p[p[p[incX(xi)]+      yi ]+    zi ];
-   bba = p[p[p[incX(xi)]+ incY(yi)]+    zi ];
-   bab = p[p[p[incX(xi)]+      yi ]+incZ(zi)];
-   bbb = p[p[p[incX(xi)]+ incY(yi)]+incZ(zi)];
+   aaa = p[p[p[    xi ]         +     yi ]         +    zi ];
+   aba = p[p[p[    xi ]         + inc(yi, repeatY)]+    zi ];
+   aab = p[p[p[    xi ]         +     yi ]         + inc(zi, repeatZ)];
+   abb = p[p[p[    xi ]         + inc(yi, repeatY)]+ inc(zi, repeatZ)];
+   baa = p[p[p[inc(xi, repeatX)]+     yi ]+    zi ];
+   bba = p[p[p[inc(xi, repeatX)]+ inc(yi, repeatY)]+    zi ];
+   bab = p[p[p[inc(xi, repeatX)]+     yi ]         + inc(zi, repeatZ)];
+   bbb = p[p[p[inc(xi, repeatX)]+ inc(yi, repeatY)]+ inc(zi, repeatZ)];
 
    x1 = lerp(grad(aaa, xf  , yf  , zf),
              grad(baa, xf-1, yf  , zf), u);
@@ -145,16 +132,78 @@ function Perlin3d(x, y, z)
 
 end
 
+
+function fractalSum(repeatTX, repeatTY, repeatTZ, pfunc, iter, seed, persistance, ...)
+    local ret = 0.0
+
+    local frequency = 1
+    local amplitude = 1.0
+    local maxValue = 0
+
+    local repeatX = repeatTX
+    local repeatY = repeatTY
+    local repeatZ = repeatTZ
+
+    --print("Ret: ", ret)
+    for i=1, iter do
+        local scaled = {}
+        table.insert(scaled, repeatX)
+        table.insert(scaled, repeatY)
+        table.insert(scaled, repeatZ)
+        for elem, v in ipairs({...}) do
+            table.insert(scaled, v * frequency + seed)
+        end
+
+        --print(table.unpack(scaled))
+        --print(unpack(scaled))
+
+        ret = ret + pfunc(table.unpack(scaled)) * amplitude
+
+        maxValue = maxValue + amplitude
+
+        amplitude = amplitude * persistance
+        frequency = frequency * 2
+
+        repeatX = repeatX * 2
+        repeatY = repeatY * 2
+        repeatZ = repeatZ * 2
+    end
+
+    return ret/maxValue
+end
+
+function fractalSumAbs(repeatTX, repeatTY, repeatTZ, func, iter, seed, persistance, ...)
+
+    return fractalSum(repeatTX, repeatTY, repeatTZ,
+                      function(...) return math.abs(func(...)) end,
+                      iter, seed, persistance, ...)
+end
+
+function turbulence(repeatTX, repeatTY, repeatTZ, func, direction, iter, seed, persistance, ...)
+    ret = fractalSum(repeatTX, repeatTY, repeatTZ,
+                     function(...) return math.abs(func(...)) end,
+                     iter, seed, persistance, ...)
+
+    local args = {...}
+    local dir_component = args[direction]
+    return math.sin(dir_component + ret)
+end
+
+
+-- Experimental
 -- this function uses torus mapping in 3d space to create seamless texture
 -- in one dimension only
 -- TODO: implement Perlin4D noise to have both direction
+-- TODO: seems like width/height is vice versa in this method implementaiton
+-- pcol = tilingTexture((y/height), (x/width), scale_width, scale_height, seed)
 function tilingTexture(nx, ny, scale_height, scale_width, seed)
     twoPi = 2.0 * math.pi
 
     angle_x = twoPi * nx
     -- angle_y = twoPi * ny
 
-    return Perlin3d((1+ math.cos(angle_x)) / twoPi * scale_height,
+    return Perlin3d(repeatTileX, repeatTileY, repeatTileZ,
+                    (1 + math.cos(angle_x)) / twoPi * scale_height,
                     (1 + math.sin(angle_x)) / twoPi * scale_height,
                     ny * scale_width)
 
@@ -164,71 +213,79 @@ function tilingTexture(nx, ny, scale_height, scale_width, seed)
     --                math.sin(angle_y) / twoPi)
 end
 
--- return simplex
---
+----------------- main generation function -------------------------------------
 function gen(
         scale_width,
         scale_height,
         seed,
+        persistance, -- sums specific
         time,
-        steps
+        steps, -- sums specific
+        method, -- method nme
+        direction -- turbulence specific
     )
     twoPi = 2 * math.pi
 
     height = app.activeImage.height
     width = app.activeImage.width
 
+    -- -1 .. 1 to 0 .. 255
+    local normalizeValue = function(val) return (val * 0.5 + 0.5) * 255 end
+
     -- Begin rendering, iterate over pixels --
-    for y = 0, height do
-        for x = 0, width do
+    for y = 0, height-1 do
+        for x = 0, width-1 do
             -- pcol, float: Contextualized perlin noise value
-            -- pcol = simplex.Noise2D((y / height * scale) + seed, (x / width * scale) + seed) * 128 + 128
-            --
-          --pcol = tilingTexture((y/height) * scale_height + seed,
-          --    (x/width) * scale_width + seed)
+            -- TODO: seed pass as an argument
+            if method == "Perlin" then
+                pcol = Perlin3d(repeatTileX, repeatTileY, repeatTileZ,
+                                (y/height) * scale_height + seed,
+                                (x/width) * scale_width + seed,
+                                time + seed)
+            elseif method == "FractalSum" then
+                pcol = fractalSum(repeatTileX, repeatTileY, repeatTileZ,
+                                  Perlin3d, steps, seed, persistance,
+                                  (y/height) * scale_height,
+                                  (x/width) * scale_width,
+                                  time)
+            elseif method == "FractalSumAbs" then
+                pcol = fractalSumAbs(repeatTileX, repeatTileY, repeatTileZ,
+                                     Perlin3d, steps, seed, persistance,
+                                     (y/height) * scale_height,
+                                     (x/width) * scale_width,
+                                     time)
+                -- normalizeValue = function(val) return val * 255 end
+            elseif method == "Turbulence" then
+                pcol = turbulence(repeatTileX, repeatTileY, repeatTileZ,
+                                  Perlin3d, direction, steps, seed, persistance,
+                                  (y/height) * scale_height,
+                                  (x/width) * scale_width,
+                                  time)
+            end
 
-           pcol = Perlin3d((y/height) * scale_height + seed,
-                            (x/width) * scale_width + seed,
-                            time + seed)
+            pcol = normalizeValue(pcol)
 
-           -- pcol = tilingTexture((y/height), (x/width), scale_width, scale_height, seed)
-
-            -- -1 .. 1 to 0 .. 255
-            pcol = (pcol * 0.5 + 0.5) * 255
-           
             -- clamp value to (0, 255)
             if pcol > 255 then
-                -- pcol = 255
+                pcol = 255
             end
 
             if pcol < 0 then
-                -- pcol = 0
+                pcol = 0
             end
             -- fcolor, Color: Final color value to use for pixel
             fcolor = {}
             fcolor = app.pixelColor.rgba(pcol, pcol, pcol)
 
-            if bumpgen then
-                -- Place black/white perline noise map (bumpmap)
-                app.activeLayer:cel(app.activeFrame.frameNumber).image:drawPixel(x, y, fcolor)
-            else
-                --Place the pixel
-                app.activeImage:drawPixel(x, y, fcolor)
-            end
+
             app.activeImage:drawPixel(x, y, fcolor)
         end
     end
-    -- End rendering --
-    -- End rendering function and return nothing --
     return
 end
 
---
--- https://www.scratchapixel.com/lessons/procedural-generation-virtual-worlds/procedural-patterns-noise-part-1/simple-pattern-examples
 -- dlg, Dialog: Main dialog object
 local dlg = {}
--- cStopDlg, Dialog: Color stop dialog object
-local cStopDlg = nil
 
 -- TODO
 -- Context aware modular dialog refreshment
@@ -241,6 +298,7 @@ function createDLG(
         scale_height,
         seed,
         steps,
+        persistance,
         tile
     )
     -- NOTE: Initializing Dialog with string gives the window a title
@@ -249,22 +307,22 @@ function createDLG(
     if bounding then
         dlg.bounds = bounding
     end
-    dlg:entry {id = "scale_width", label = "Scale Width:", text = scale or "1.0"}
-    dlg:entry {id = "scale_height", label = "Scale Height:", text = scale or "1.0"}
+    dlg:entry {id = "scale_width", label = "Scale Width:", text = scale or "7.0"}
+    dlg:entry {id = "scale_height", label = "Scale Height:", text = scale or "5.0"}
     dlg:entry {id = "seed", label = "Seed:", text = seed or "0.0"}
-
-    dlg:check {
-        id = "repeatHeight",
-        label = "Repeat Height: ",
-        text  = "Yes",
-        selected = false or repeatHeight
-    }
 
     dlg:check {
         id = "repeatWidth",
         label = "Repeat Width: ",
         text  = "Yes",
         selected = false or repeatWidth
+    }
+
+    dlg:check {
+        id = "repeatHeight",
+        label = "Repeat Height: ",
+        text  = "Yes",
+        selected = false or repeatHeight
     }
 
     dlg:check {
@@ -278,14 +336,9 @@ function createDLG(
         text = "number of 'Frames' must be divisible by 'Time step' value"
     }
 
-    -- dlg:check {
-    --     id = "randomseed",
-    --     label = "Random Seed: ",
-    --     text = "Yes",
-    --     selected = false or randomseed
-    -- }
-
     dlg:entry {id = "time_step", label = "Time step:", text = scale or "0.2"}
+
+    dlg:newrow()
 
     dlg:slider {
         id = "frames",
@@ -294,6 +347,27 @@ function createDLG(
         max = 128,
         value = frames or 1
     }
+
+    dlg:newrow()
+    method_options = {"Perlin", "FractalSum", "FractalSumAbs", "Turbulence"}
+
+    dlg:combobox {
+        id = "method",
+        label = "Method:",
+        options = method_options
+    }
+
+    dlg:label {
+        label = "--------",
+        text = "Values valid only for FractalSums and Turbulence"
+    }
+
+    dlg:entry {
+        id = "persistance",
+        label = "Persistance: ",
+        text = persistance or "0.5"
+    }
+
 
     dlg:slider {
         id = "steps",
@@ -304,6 +378,19 @@ function createDLG(
     }
 
     dlg:newrow()
+
+    dlg:label {
+        label = "--------",
+        text = "Valid only for Turbulence"
+    }
+
+    direction_options = {"Width", "Height", "Time"}
+
+    dlg:combobox {
+        id = "direction",
+        label = "Direction:",
+        options = direction_options
+    }
 
     -- Clicking button
 
@@ -333,14 +420,24 @@ function createDLG(
             if data.repeatTime then
                 repeatTileZ = tonumber(data.frames) * time_step
             end
+            persistance = tonumber(data.persistance)
+            steps = tonumber(data.steps)
+            method = data.method
 
-            steps = data.steps
+            local indexDirection = 0
+            if data.direction == "Width" then
+                indexDirection = 2
+            elseif data.direction == "Height" then
+                indexDirection = 1
+            elseif data.direction == "Time" then
+                indexDirection = 3
+            end
 
             -- Generation of images
-            gen(scale_width, scale_height, seed, 0 * time_step, steps)
+            gen(scale_width, scale_height, seed, persistance, 0 * time_step, steps, method, indexDirection)
             for i=2, tonumber(data.frames) do
                 app.activeSprite:newFrame()
-                gen(scale_width, scale_height, seed, (i-1) * time_step, steps)
+                gen(scale_width, scale_height, seed, persistance, (i-1) * time_step, steps, method, indexDirection)
             end
             -- Hard refreshes canvas to update, revisit on API updates
             app.refresh()
@@ -353,15 +450,21 @@ function createDLG(
         id = "info",
         text = "Info",
         onclick = function()
+            if bounding then
+                infoDlg.bounds = bounding
+            end
             if not infoDlg then
-                infoDlg = Dialog("Info")
+                infoDlg = Dialog("AseWave Info")
             else
                 infoDlg:close()
-                infoDlg = Dialog("Info")
+                infoDlg = Dialog("AseWave Info")
             end
-            infoDlg:entry{id="repo", label="Repository:", text="https://github.com/Ondra09/lawaves"}
-            infoDlg:label{id="version", label="Version:", text=version}
-            infoDlg:show{wait=false}
+
+
+            infoDlg:label { id="placeholder", label="Aseprite support: ", text="1.2+                                     "}
+            infoDlg:entry { id="repo", label="Repository:", text="https://github.com/Ondra09/AseWave" }
+            infoDlg:label { id="version", label="Version:", text=version or 1.0 }
+            infoDlg:show { wait=false }
         end
     }
 end
