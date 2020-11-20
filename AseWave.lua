@@ -56,10 +56,11 @@ repeatTileY = 0
 repeatTileZ = 0
 
 function inc(num, repeatTile)
-    num = num +1
+    num = num + 1
     if (repeatTile > 0) then
-        num = num % repeatTile
+        num = math.floor(num % repeatTile)
     end
+
     return num
 end
 
@@ -73,7 +74,7 @@ local Gradients3D = {{1,1,0},{-1,1,0},{1,-1,0},{-1,-1,0},
 
 function grad(hash, x, y, z)
     hash = (math.floor(hash) % 12) + 1
-    -- print(hash)
+
     return Dot3D(Gradients3D[hash], x, y, z)
 end
 
@@ -277,11 +278,30 @@ function gen(
             fcolor = {}
             fcolor = app.pixelColor.rgba(pcol, pcol, pcol)
 
-
             app.activeImage:drawPixel(x, y, fcolor)
         end
     end
     return
+end
+
+function isInteger(x)
+    return x == math.floor(x) * 1.0
+end
+
+function findMultiplicative(x)
+    local maxIterrations = 500
+    local tbl = {}
+    for i=1,maxIterrations do
+        if (isInteger(i*x)) then
+            table.insert(tbl, i)
+        end
+
+        if #tbl > 5 then
+            break
+        end
+    end
+
+    return tbl
 end
 
 -- dlg, Dialog: Main dialog object
@@ -332,10 +352,6 @@ function createDLG(
         selected = false or repeatTime
     }
 
-    dlg:label {
-        text = "number of 'Frames' must be divisible by 'Time step' value"
-    }
-
     dlg:entry {id = "time_step", label = "Time step:", text = scale or "0.2"}
 
     dlg:newrow()
@@ -358,7 +374,7 @@ function createDLG(
     }
 
     dlg:label {
-        label = "--------",
+        label = "---------",
         text = "Values valid only for FractalSums and Turbulence"
     }
 
@@ -380,7 +396,7 @@ function createDLG(
     dlg:newrow()
 
     dlg:label {
-        label = "--------",
+        label = "---------",
         text = "Valid only for Turbulence"
     }
 
@@ -420,6 +436,7 @@ function createDLG(
             if data.repeatTime then
                 repeatTileZ = tonumber(data.frames) * time_step
             end
+
             persistance = tonumber(data.persistance)
             steps = tonumber(data.steps)
             method = data.method
@@ -431,6 +448,41 @@ function createDLG(
                 indexDirection = 1
             elseif data.direction == "Time" then
                 indexDirection = 3
+            end
+
+            errorMsg = function(label, checkbox, value)
+                errDlg = Dialog("Error")
+                errDlg:label { label="Invalid \"" .. label .. "\"'s' value. It must be an integer when \"" .. checkbox .. "\" is set."}
+                errDlg:label { label="Current value: " .. value}
+                errDlg:label { id="errMsg", label="The nearest valid values are:  " .. math.floor(value) .. ", " .. 1 + math.floor(value)}
+                errDlg:show { wait=true }
+                end
+
+            if (not isInteger(scale_width)) and data.repeatWidth then
+                errorMsg("Scale Width", "Repeat Width", scale_width)
+                return
+            end
+
+            if (not isInteger(scale_height)) and data.repeatHeight then
+                errorMsg("Scale Height", "Repeat Height", scale_height)
+                return
+            end
+
+
+            if (not isInteger(data.frames*time_step) and data.repeatTime) then
+                results = findMultiplicative(time_step)
+
+                errDlg = Dialog("Error")
+                nlabel = "Valid number of \"Frames\" for current \"Time step\" are: "
+                for i=1,#results do
+                    nlabel = nlabel .. results[i] .. " "
+                end
+
+                errDlg:label {label = "Invalid \"Time step\" * \"Frames\" value. It must be an integer when \"Repeat in time\" is set."}
+                errDlg:label {label = nlabel}
+                errDlg:show {wait = true}
+                return
+
             end
 
             -- Generation of images

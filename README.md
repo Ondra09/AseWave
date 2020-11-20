@@ -1,6 +1,6 @@
 # AseWave
-Water & Clouds generation plugin for Aseprite editor, that uses Perlin noise for generation of image.
 
+Water & Clouds generation plugin for Aseprite editor.
 
 ![](docs/noisy.gif)
 
@@ -30,6 +30,18 @@ UI is basic and shows all values even if they do not apply for particular method
 
 All methods use Perlin noise method for generation of random field.
 
+## Installation
+
+Copy `AseWave.lua` into your Aseprite script folder and press `F5` inside the editor to refresh its content. 
+
+Scripts folder can be found like this: 
+
+``` 
+File -> Scripts -> Open Scripts Folder
+```
+
+
+
 ## Credit
 
 This plugin is originally based on source code and ideas described below:
@@ -42,7 +54,7 @@ This plugin is originally based on source code and ideas described below:
 
 <https://ronvalstar.nl/creating-tileable-noise-maps>
 
-- With nice exaples in Shadertoy as well:
+- With nice examples in Shadertoy as well:
 
 <https://gpfault.net/posts/perlin-noise.txt.html>
 
