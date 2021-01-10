@@ -17,8 +17,8 @@ UI is basic and shows all values even if they do not apply for particular method
 - `Scale height` the same for height
 - `Seed` different seed changes initial noise pattern
 - `Repeat Width` checkbox enables to tile texture in width direction
-- `Repeat Height` enables to tile in height 
-- `Repeat in time` enables to create endless loop animation 
+- `Repeat Height` enables to tile in height
+- `Repeat in time` enables to create endless loop animation
 - `Time step` says how fast animation changes between two frames (ignored for a single frame)
 - `Frames` number of frames to generate. Default is 1, e.g. no animation
 - `Method` you can choose which method is used to generate texture. Options are `Perlin` `FractalSum` `FractalSumAbs` and `Turbulence`
@@ -32,11 +32,11 @@ All methods use Perlin noise method for generation of random field.
 
 ## Installation
 
-Copy `AseWave.lua` into your Aseprite script folder and press `F5` inside the editor to refresh its content. 
+Copy `AseWave.lua` into your Aseprite script folder and press `F5` inside the editor to refresh its content.
 
-Scripts folder can be found like this: 
+Scripts folder can be found like this:
 
-``` 
+```
 File -> Scripts -> Open Scripts Folder
 ```
 
@@ -54,6 +54,8 @@ This plugin is originally based on source code and ideas described below:
 
 <https://ronvalstar.nl/creating-tileable-noise-maps>
 
+<https://lodev.org/cgtutor/randomnoise.html>
+
 - With nice examples in Shadertoy as well:
 
 <https://gpfault.net/posts/perlin-noise.txt.html>
@@ -61,3 +63,10 @@ This plugin is originally based on source code and ideas described below:
 <https://www.scratchapixel.com/lessons/procedural-generation-virtual-worlds/perlin-noise-part-2>
 
 <https://www.scratchapixel.com/lessons/procedural-generation-virtual-worlds/procedural-patterns-noise-part-1/simple-pattern-examples>
+
+# Normal Map generation
+![](docs/normal.gif)
+
+Plugin `NormalSprite.lua` provides generation of normal map from selected image. You can select multiple frames at once to have whole animation transformed to normal maps in one step.
+
+Method used for edge detection is `Sobel`.
